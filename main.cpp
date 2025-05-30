@@ -42,26 +42,30 @@ vector<double> getProjectileSpeed(int speed, double angle) {
         out.push_back(speed*std::sin(angle-(3/2)*pi));
     }
     
-    std::cout << -1*speed*std::cos(rad(270-angle)) << std::endl;
+    
 
     return out;
 }
+
+int projDistanceFromPaddleCentre(SDL_Rect paddle, SDL_Rect proj) { return paddle.y+paddle.h/2-proj.y; }
 
 
 int main(int argc, char* argv[]) {
 
     SDL_Window *window;                    // Declare a pointer
     bool done = false;
-    std::cout << std::sin(0) << std::endl;
     int paddleY1 = 100;
     int paddleY2 = 100;
     int paddleYDeltaVelocity = 10;
     int prevTime = SDL_GetTicks();
     int deltaTime;
+    int score1 = 0;
+    int score2 = 0;
+    int projSpinK = 30;
 
     // PROJECTILE
-    int projSpeed = 2;
-    double projAngle = 1.25*pi;
+    int projSpeed = 4;
+    double projAngle = 0.5*pi;
     vector<double> projXYSpeed;
 
 
@@ -92,14 +96,16 @@ int main(int argc, char* argv[]) {
     SDL_FRect projF;
     paddle1.x=100;
     paddle2.x=750;
-    paddle1.y=100;
-    paddle2.y=100;
+    paddle1.y=275;
+    paddle2.y=275;
     paddle1.h=100;
     paddle2.h=100;
     paddle1.w=50;
     paddle2.w=50;
+    
     proj.w=5;
     proj.h=5;
+    
     proj.x=450;
     proj.y=300;
 
@@ -113,20 +119,31 @@ int main(int argc, char* argv[]) {
                 done = true;
             }
 
-            if (event.type == SDL_EVENT_KEY_DOWN) {
-                if (event.key.key == SDLK_E) {
-                    paddle1.y-=paddleYDeltaVelocity;
-                } else if (event.key.key == SDLK_D) {
-                    paddle1.y+=paddleYDeltaVelocity;
-                } else if (event.key.key == SDLK_UP) {
-                    paddle2.y-=paddleYDeltaVelocity;
-                } else if (event.key.key == SDLK_DOWN) {
-                    paddle2.y+=paddleYDeltaVelocity;
-                }
-            }
-
             
         }
+
+        const bool *keys = SDL_GetKeyboardState(NULL);
+        if (keys[SDL_SCANCODE_W]) {
+            paddle1.y-=paddleYDeltaVelocity;
+        } else if (keys[SDL_SCANCODE_S]) {
+            paddle1.y+=paddleYDeltaVelocity;
+        }
+        if (keys[SDL_SCANCODE_UP]) {
+            paddle2.y-=paddleYDeltaVelocity;
+        } else if (keys[SDL_SCANCODE_DOWN]) {
+            paddle2.y+=paddleYDeltaVelocity;
+        }
+        if (keys[SDL_SCANCODE_R]) {
+            score1=0;
+            score2=0;
+            paddle1.y=275;
+            paddle2.y=275;
+            projAngle = 0.5*pi;
+            proj.x=450;
+            proj.y=300;
+
+        }
+
 
 
         projXYSpeed = getProjectileSpeed(projSpeed, projAngle);
@@ -136,8 +153,37 @@ int main(int argc, char* argv[]) {
         if (proj.y < 0 || proj.y > 595) {
             projAngle = pi-projAngle;
         }
-        if (SDL_HasRectIntersection(&proj, &paddle1) || SDL_HasRectIntersection(&proj, &paddle2)) {
-            projAngle = 2*pi-projAngle;
+        if (SDL_HasRectIntersection(&proj, &paddle1)) {
+            if (projDistanceFromPaddleCentre(paddle1, proj) > 0) {
+                projAngle = 2*pi-projAngle - pi/10;
+            } else {
+                projAngle = 2*pi-projAngle + pi/10;
+            }
+            
+            proj.x+=5;
+        } else if (SDL_HasRectIntersection(&proj, &paddle2)) {
+            if (projDistanceFromPaddleCentre(paddle2, proj) > 0) {
+                projAngle = 2*pi-projAngle + pi/10;
+            } else {
+                projAngle = 2*pi-projAngle - pi/10;
+            }
+            
+            proj.x-=5;
+        }
+        
+        if (proj.x < 5) {
+            score2++;
+            std::cout << "1: " << score1 << ", 2: " << score2 << std::endl;
+            proj.x=450;
+            proj.y=300;
+            projAngle = 1.5*pi;
+        } 
+        if (proj.x > 895) {
+            score1++;
+            std::cout << "1: " << score1 << ", 2: " << score2 << std::endl;
+            proj.x=450;
+            proj.y=300;
+            projAngle = pi/2;
         }
 
         // Do game logic, present a frame, etc.
@@ -148,7 +194,7 @@ int main(int argc, char* argv[]) {
         SDL_RectToFRect(&paddle1, &paddle1F);
         SDL_RectToFRect(&paddle2, &paddle2F);
         SDL_RectToFRect(&proj, &projF);
-
+        
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderFillRect(renderer, &paddle1F);
         SDL_RenderFillRect(renderer, &paddle2F);
